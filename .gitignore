@@ -1,0 +1,33 @@
+# Binaries
+bin/
+*.o
+*.so
+*.a
+*.bin
+*.dll
+*.exe
+
+# Visual Studio artifacts
+.vs/
+.vscode/
+.VSCodeCounter/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+
+# VS Code artifacts
+.vscode/
+.VSCodeCounter/
+
+# OS thumbnail files
+[Tt]humbs.db
+*.DS_Store
+
