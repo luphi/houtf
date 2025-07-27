@@ -1,15 +1,15 @@
-CC:=gcc
-CFLAGS:=-I.. -g -O1 -s -Wall -std=c89
+CC := gcc
+CFLAGS := -I.. -g -Wall -ansi
 
 ifeq ($(OS),Windows_NT)
-	EXEC:=houtf-test.exe
+	EXEC := houtf-test.exe
 else
-	EXEC:=houtf-test.bin
+	EXEC := houtf-test.bin
 endif
 
 .PHONY: clean all
 
-all:
+all: houtf-test.c
 	$(CC) $(CFLAGS) houtf-test.c -o $(EXEC)
 
 clean:

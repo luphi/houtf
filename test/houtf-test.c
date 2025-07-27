@@ -14,12 +14,12 @@ typedef struct
 {
     const char* file_name;
     const char* str;
-    houtf_encoding_t enc;
+    houtf_encoding_t encoding;
 } document_t;
 
-const char* encoding_to_string(houtf_encoding_t enc)
+const char* encoding_to_string(houtf_encoding_t encoding)
 {
-    switch (enc)
+    switch (encoding)
     {
     default:
     case HOUTF_ENCODING_UNKNOWN: return "unknown";
@@ -50,7 +50,7 @@ int main(int argc, char** argv)
         FILE* file;
         if ((file = fopen(documents[i].file_name, "r")) == NULL)
         {
-            fprintf(stderr, "Failed to open document: %s\n", documents[i].file_name);
+            fprintf(stderr, "Failed to open document: \"%s\"\n", documents[i].file_name);
             return EXIT_FAILURE;
         }
 
@@ -58,18 +58,18 @@ int main(int argc, char** argv)
         size_t bytes_read;
         if ((bytes_read = fread(contents[i], 1, CONTENT_BUFFERS_LENGTH - 1, file)) == 0)
         {
-            fprintf(stderr, "\n\nFailed to read document %s, exiting...\n", documents[i].file_name);
+            fprintf(stderr, "\n\nFailed to read document \"%s\", exiting...\n", documents[i].file_name);
             return EXIT_FAILURE;
         }
 
         fclose(file); /* The file's contents are in memory so it can be closed */
         contents[i][bytes_read] = '\0'; /* Null terminate the string to be safe */
-        houtf_encoding_t enc = houtf_detect_bom(contents[i], bytes_read);
-        const char* str = contents[i] + houtf_bom_len(enc);
+        houtf_encoding_t encoding = houtf_detect_bom(contents[i], bytes_read);
+        const char* str = contents[i] + houtf_bom_len(encoding);
         documents[i].str = str;
-        documents[i].enc = enc;
-        printf("---- Read document %s of %lu bytes and %lu characters with encoding %s\n", documents[i].file_name,
-            (unsigned long)bytes_read, (unsigned long)houtf_strlen_e(str, enc), encoding_to_string(enc));
+        documents[i].encoding = encoding;
+        printf("---- Read document \"%s\" of %lu bytes and %lu characters with encoding %s\n", documents[i].file_name,
+            (unsigned long)bytes_read, (unsigned long)houtf_strlen_e(str, encoding), encoding_to_string(encoding));
     }
 
     /* Go through all permutations and perform a string comparison */
@@ -84,15 +84,15 @@ int main(int argc, char** argv)
 
             document_t doc1 = documents[i];
             document_t doc2 = documents[j];
-            if (houtf_strcmp_e(doc1.str, doc1.enc, doc2.str, doc2.enc) == 0)
+            if (houtf_strcmp_e(doc1.str, doc1.encoding, doc2.str, doc2.encoding) == 0)
             {
-                printf("-- %s (%s) == %s (%s)\n", doc1.file_name, encoding_to_string(doc1.enc), doc2.file_name,
-                    encoding_to_string(doc2.enc));
+                printf("-- %s (%s) == %s (%s)\n", doc1.file_name, encoding_to_string(doc1.encoding), doc2.file_name,
+                    encoding_to_string(doc2.encoding));
             }
             else
             {
-                printf("!! %s (%s) != %s (%s)\n", doc1.file_name, encoding_to_string(doc1.enc), doc2.file_name,
-                    encoding_to_string(doc2.enc));
+                printf("!! %s (%s) != %s (%s)\n", doc1.file_name, encoding_to_string(doc1.encoding), doc2.file_name,
+                    encoding_to_string(doc2.encoding));
                 exit_status = EXIT_FAILURE;
             }
         }
