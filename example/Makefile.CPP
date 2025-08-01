@@ -20,7 +20,7 @@ endif
 
 # Target for building a release executable that excludes debug symbols and uses a high optimization level
 release: houtf-example.c
-	$(CC) $(CFLAGS) -O3 -s houtf-example.c -o $(EXEC)
+	$(CC) $(CFLAGS) -O3 houtf-example.c -o $(EXEC)
 
 # Target for building a debug executable that includes debug symbols
 debug: houtf-example.c
