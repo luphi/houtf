@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2024-2025 Luke Philipsen
+Copyright (c) 2024 Luke Philipsen
 
 Permission to use, copy, modify, and/or distribute this software for
 any purpose with or without fee is hereby granted.
@@ -51,7 +51,7 @@ typedef enum {
     HOUTF_ENCODING_UNKNOWN = 0, /**< Encoding is not known. This is assumed to be UTF-8 when encoding/decoding. */
     HOUTF_ENCODING_UTF8, /**< Variable-length character encoding using between one and four bytes per character. */
     HOUTF_ENCODING_UTF16BE, /**< Varaiable-length character encoding using two or four bytes. Big endian. */
-    HOUTF_ENCODING_UTF16LE, /**< Varaiable-length character encoding using two or four bytes. Little endian. */
+    HOUTF_ENCODING_UTF16LE /**< Varaiable-length character encoding using two or four bytes. Little endian. */
 } houtf_encoding_t;
 
 /**
@@ -204,7 +204,7 @@ HOUTF_DECL int houtf_strcmp_e(const char* str1, houtf_encoding_t str1_encoding, 
 /**
  * Returns the length of the UTF-8 string 'str.'
  * The length of a string is determiend by the terminator null character: a string is as long as the number of
- * characters between the beginning of the string and the terminating charcter (without including the terminating null
+ * characters between the beginning of the string and the terminating character (without including the terminating null
  * character itself).
  *
  * @param str A UTF-8 string.
@@ -215,7 +215,7 @@ HOUTF_DECL size_t houtf_strlen(const char* str);
 /**
  * Returns the length of the string 'str.'
  * The length of a string is determiend by the terminator null character: a string is as long as the number of
- * characters between the beginning of the string and the terminating charcter (without including the terminating null
+ * characters between the beginning of the string and the terminating character (without including the terminating null
  * character itself).
  *
  * @param str A string.
@@ -259,13 +259,11 @@ HOUTF_DECL const char* houtf_strstr_e(const char* str1, houtf_encoding_t str1_en
 /******************/
 /* Implementation */
 
-houtf_encoding_t houtf_detect_bom(const char* str, size_t bytes)
-{
+houtf_encoding_t houtf_detect_bom(const char* str, size_t bytes) {
     /* UTF byte order marks (BOMs) are simple magic numbers prepended to files. They can be detected by comparing the */
     /* first 16 to 32 bits again those magic numbers. */
 
-    if (str != NULL)
-    {
+    if (str != NULL) {
         /* The UTF-8 BOM is EF BB BF */
         if (bytes >= 3 && (str[0] & 0xFF) == 0xEF && (str[1] & 0xFF) == 0xBB && (str[2] & 0xFF) == 0xBF)
             return HOUTF_ENCODING_UTF8;
@@ -283,10 +281,8 @@ houtf_encoding_t houtf_detect_bom(const char* str, size_t bytes)
     return HOUTF_ENCODING_UNKNOWN;
 }
 
-size_t houtf_bom_len(houtf_encoding_t encoding)
-{
-    switch (encoding)
-    {
+size_t houtf_bom_len(houtf_encoding_t encoding) {
+    switch (encoding) {
     case HOUTF_ENCODING_UNKNOWN:
     default:
         return 0;
@@ -300,17 +296,17 @@ size_t houtf_bom_len(houtf_encoding_t encoding)
     }
 }
 
-houtf_char_t houtf_decode(const char* str, size_t bytes)
-{
+houtf_char_t houtf_decode(const char* str, size_t bytes) {
     return houtf_decode_e(str, bytes, HOUTF_ENCODING_UTF8);
 }
 
-houtf_char_t houtf_decode_e(const char* str, size_t bytes, houtf_encoding_t encoding)
-{
-    houtf_char_t c = {/* encoded: */ 0, /* codepoint: */ 0, /* bytes: */ 0, /* encoding: */ HOUTF_ENCODING_UNKNOWN};
+houtf_char_t houtf_decode_e(const char* str, size_t bytes, houtf_encoding_t encoding) {
+    houtf_char_t c;
+    c.encoded = c.codepoint = 0;
+    c.bytes = 0;
+    c.encoding = HOUTF_ENCODING_UNKNOWN;
 
-    switch (encoding)
-    {
+    switch (encoding) {
     case HOUTF_ENCODING_UNKNOWN:
         c.bytes = 1;
     break;
@@ -346,21 +342,18 @@ houtf_char_t houtf_decode_e(const char* str, size_t bytes, houtf_encoding_t enco
     }
 
     /* If the string doesn't have enough bytes in it to decode this character */
-    if (c.bytes > bytes)
-    {
+    if (c.bytes > bytes) {
         /* Return early with all values zeroed */
         c.bytes = 0;
         return c;
     }
 
-    switch (encoding)
-    {
+    switch (encoding) {
     case HOUTF_ENCODING_UNKNOWN:
-        c.codepoint = str[0];
+        c.codepoint = (unsigned)(str[0] & 0xFF);
     break;
     case HOUTF_ENCODING_UTF8:
-        if (c.bytes == 1)
-        {
+        if (c.bytes == 1) {
             /* One-byte UTF-8 characters are encoded as 0XXXXXXX where the Xs represent the bits of the character's */
             /* value. For all decoding, we want to grab only those bits and transform them into an integer. */
             /* The method here takes one byte from the string, uses a mask to zero out any bit that is not part of */
@@ -368,46 +361,36 @@ houtf_char_t houtf_decode_e(const char* str, size_t bytes, houtf_encoding_t enco
             /* place them at the indexes they're expected in the value, and then bitwise ORs these components into a */
             /* single unsigned 32-bit integer. This one-byte case does not need any shift but the remaining cases do. */
             c.codepoint = (unsigned)(str[0] & 0x7F);
-        }
-        else if (c.bytes == 2)
-        {
+        } else if (c.bytes == 2) {
             /* Two-byte UTF-8 characters are encoded as 110XXXXX 10XXXXXX */
             c.codepoint = ((unsigned)(str[0] & 0x1F) << 6) | ((unsigned)(str[1] & 0x3F) << 0);
-        }
-        else if (c.bytes == 3)
-        {
+        } else if (c.bytes == 3) {
             /* Three-byte UTF-8 characters are encoded as 1110XXXX 10XXXXXX 10XXXXXX */
             c.codepoint = ((unsigned)(str[0] & 0x0F) << 12) | ((unsigned)(str[1] & 0x3F) << 6) |
                           ((unsigned)(str[2] & 0x3F) << 0);
-        }
-        else if (c.bytes == 4)
-        {
+        } else if (c.bytes == 4) {
             /* Four-byte UTF-8 characters are encoded as 11110XXX 10XXXXXX 10XXXXXX 10XXXXXX */
             c.codepoint = ((unsigned)(str[0] & 0x07) << 18) | ((unsigned)(str[1] & 0x3F) << 12) |
                           ((unsigned)(str[2] & 0x3F) << 6)  | ((unsigned)(str[3] & 0x3F) << 0);
         }
     break;
     case HOUTF_ENCODING_UTF16BE:
-        if (c.bytes == 2)
-        {
+        if (c.bytes == 2) {
             /* Concatenate the two bytes together to retrieve the original value */
-            c.codepoint = ((unsigned)str[0] << 8) | ((unsigned)str[1] << 0);
-        }
-        else if (c.bytes == 4)
-        {
+            c.codepoint = ((unsigned)(str[0] & 0xFF) << 8) | ((unsigned)(str[1] & 0xFF) << 0);
+        } else if (c.bytes == 4) {
             /* Four-byte UTF-16 characters are encoded as 110110XX XXXXXXXX 110111XX XXXXXXXX after first subtracting */
             /* 0x00010000 from the value. Here, that subtracted value is reconstructed and 0x00010000 is added back. */
-            c.codepoint = (((unsigned)(str[0] & 0x03) << 18) | ((unsigned)str[1] << 16) |
-                           ((unsigned)(str[2] & 0x03) << 8)  | ((unsigned)str[3] << 0)) + 0x00010000;
+            c.codepoint = (((unsigned)(str[0] & 0x03) << 18) | ((unsigned)(str[1] & 0xFF) << 10) |
+                           ((unsigned)(str[2] & 0x03) << 8)  | ((unsigned)(str[3] & 0xFF) << 0)) + 0x00010000;
         }
     break;
     case HOUTF_ENCODING_UTF16LE:
         if (c.bytes == 2)
-            c.codepoint = ((unsigned)str[1] << 8) | ((unsigned)str[0] << 0);
-        else if (c.bytes == 4)
-        {
-            c.codepoint = (((unsigned)(str[1] & 0x03) << 18) | ((unsigned)str[0] << 16) |
-                           ((unsigned)(str[3] & 0x03) << 8)  | ((unsigned)str[2] << 0)) + 0x00010000;
+            c.codepoint = ((unsigned)(str[1] & 0xFF) << 8) | ((unsigned)(str[0] & 0xFF) << 0);
+        else if (c.bytes == 4) {
+            c.codepoint = (((unsigned)(str[1] & 0x03) << 18) | ((unsigned)(str[0] & 0xFF) << 10) |
+                           ((unsigned)(str[3] & 0x03) << 8)  | ((unsigned)(str[2] & 0xFF) << 0)) + 0x00010000;
         }
     break;
     }
@@ -417,98 +400,85 @@ houtf_char_t houtf_decode_e(const char* str, size_t bytes, houtf_encoding_t enco
     return c;
 }
 
-houtf_char_t houtf_encode(unsigned codepoint)
-{
+houtf_char_t houtf_encode(unsigned codepoint) {
     return houtf_encode_e(codepoint, HOUTF_ENCODING_UTF8);
 }
 
-houtf_char_t houtf_encode_e(unsigned codepoint, houtf_encoding_t encoding)
-{
-    houtf_char_t c = {/* encoded: */ 0, /* codepoint: */ 0, /* bytes: */ 0, /* encoding: */ HOUTF_ENCODING_UNKNOWN};
+houtf_char_t houtf_encode_e(unsigned codepoint, houtf_encoding_t encoding) {
+    houtf_char_t c;
+    char* str;
+    c.encoded = c.codepoint = 0;
+    c.bytes = 0;
+    c.encoding = HOUTF_ENCODING_UNKNOWN;
 
     /* This variable will make it easier to assign values to 'c.endoded' without difficult-to-read casts */
-    char* str = (char*)&(c.encoded);
+    str = (char*)&(c.encoded);
 
     switch (encoding) {
     case HOUTF_ENCODING_UNKNOWN: /* If the encoding is somehow not specified, assume UTF-8 */
     case HOUTF_ENCODING_UTF8:
-        if (codepoint <= 0x0000007F) /* If the codepoint will fit into one byte */
-        {
+        if (codepoint <= 0x0000007F) { /* If the codepoint will fit into one byte */
             c.encoded = codepoint;
             c.bytes = 1;
-        }
-        else if (codepoint >= 0x000080 && codepoint<= 0x000007FF) /* If the codepoint will fit into two bytes */
-        {
+        } else if (codepoint >= 0x000080 && codepoint<= 0x000007FF) { /* If the codepoint will fit into two bytes */
             /* For codepoints with bits XXXXXAAA AABBBBBB we want to transform them to the form 110AAAAA 10BBBBBB. */
             /* The method here treats c.encoded as an array of unsigned, eight-bit integers. This is done to assign */
             /* bytes individually for the sake of endianness where UTF-8 is big endian. The codepoint is masked in */
             /* order to zero any bits that are not used in the byte being assigned, then shifted all the way to the */
             /* right. The prefixed "0xC0" and "0x80" bitwise ORs prepend the UTF-8 markers 110 and 10, respectively. */
-            str[0] = 0xC0 | (char)((codepoint & 0x0000007C0) >> 6); /* 110AAAAAA */
-            str[1] = 0x80 | (char)((codepoint & 0x0000000FF) >> 0); /* 10BBBBBB */
+            str[0] = (char)0xC0 | (char)((codepoint & 0x0000007C0) >> 6); /* 110AAAAAA */
+            str[1] = (char)0x80 | (char)((codepoint & 0x0000000FF) >> 0); /* 10BBBBBB */
             c.bytes = 2;
-        }
-        else if ((codepoint >= 0x00000800 && codepoint <= 0x0000D7FF) ||
-                (codepoint >= 0x0000E000 && codepoint <= 0x0000FFFF))
-        {
+        } else if ((codepoint >= 0x00000800 && codepoint <= 0x0000D7FF) ||
+                (codepoint >= 0x0000E000 && codepoint <= 0x0000FFFF)) {
             /* For a codepoint with bits AAAABBBB BBCCCCCC we want 1110AAAA 10BBBBBB 10CCCCCC */
-            str[0] = 0xE0 | (char)((codepoint & 0x0000F000) >> 12); /* 1110AAAA */
-            str[1] = 0x80 | (char)((codepoint & 0x00000FC0) >> 6);  /* 10BBBBBB */
-            str[2] = 0x80 | (char)((codepoint & 0x0000003F) >> 0);  /* 10CCCCCC */
+            str[0] = (char)0xE0 | (char)((codepoint & 0x0000F000) >> 12); /* 1110AAAA */
+            str[1] = (char)0x80 | (char)((codepoint & 0x00000FC0) >> 6);  /* 10BBBBBB */
+            str[2] = (char)0x80 | (char)((codepoint & 0x0000003F) >> 0);  /* 10CCCCCC */
             c.bytes = 3;
-        }
-        else if (codepoint >= 0x00010000 && codepoint <= 0x0010FFFF) {
+        } else if (codepoint >= 0x00010000 && codepoint <= 0x0010FFFF) {
             /* For a codepoint with bits XXXAAABB BBBBCCCC CCDDDDDD we want 11110AAA 10BBBBBB 10CCCCCC 10DDDDDD */
-            str[0] = 0xF0 | (char)((codepoint & 0x001C0000) >> 18); /* 11110AAA */
-            str[1] = 0x80 | (char)((codepoint & 0x0003F000) >> 12); /* 10BBBBBB */
-            str[2] = 0x80 | (char)((codepoint & 0x00000FC0) >> 6);  /* 10CCCCCC */
-            str[3] = 0x80 | (char)((codepoint & 0x0000003F) >> 0);  /* 10DDDDDD */
+            str[0] = (char)0xF0 | (char)((codepoint & 0x001C0000) >> 18); /* 11110AAA */
+            str[1] = (char)0x80 | (char)((codepoint & 0x0003F000) >> 12); /* 10BBBBBB */
+            str[2] = (char)0x80 | (char)((codepoint & 0x00000FC0) >> 6);  /* 10CCCCCC */
+            str[3] = (char)0x80 | (char)((codepoint & 0x0000003F) >> 0);  /* 10DDDDDD */
             c.bytes = 4;
-        }
-        else /* If the codepoint is not valid */
+        } else /* If the codepoint is not valid */
             c.bytes = 0; /* Don't even try */
     break;
     case HOUTF_ENCODING_UTF16BE:
-        if (codepoint <= 0x0000D7FF || (codepoint >= 0x0000E000 && codepoint <= 0x0000FFFF)) /* Fits in two bytes */
-        {
+        if (codepoint <= 0x0000D7FF || (codepoint >= 0x0000E000 && codepoint <= 0x0000FFFF)) { /* Fits in two bytes */
             str[0] = (char)((codepoint & 0x0000FF00) >> 8);
             str[1] = (char) (codepoint & 0x000000FF);
             c.bytes = 2;
-        }
-        else if (codepoint >= 0x00010000 && codepoint <= 0x0010FFFF) /* If the codepoint fits in four bytes */
-        {
+        } else if (codepoint >= 0x00010000 && codepoint <= 0x0010FFFF) { /* If the codepoint fits in four bytes */
             /* For codepoint - 0x00010000 with bits XXXXXXXX XXXXAABB BBBBBBCC DDDDDDDD we want to transform the bits */
             /* to the form 110110AA BBBBBBBB 110111CC DDDDDDDD. When decoded, as per UTF-16, 0x00010000 is added. */
             /* The prefixed "0xD8" and "0xDC" bitwise ORs prepend the UTF-16 markers 110110 and 110111, respectively. */
             codepoint -= 0x00010000;
-            str[0] = 0xD8 | (char)((codepoint & 0x000C0000) >> 20); /* 110110AA */
-            str[1] =        (char)((codepoint & 0x0003FC00) >> 18); /* BBBBBBBB */
-            str[2] = 0xDC | (char)((codepoint & 0x00000300) >> 8);  /* 110111CC */
-            str[3] =        (char)((codepoint & 0x000000FF) >> 0);  /* DDDDDDDD */
+            str[0] = (char)0xD8 | (char)((codepoint & 0x000C0000) >> 18); /* 110110AA */
+            str[1] =              (char)((codepoint & 0x0003FC00) >> 10); /* BBBBBBBB */
+            str[2] = (char)0xDC | (char)((codepoint & 0x00000300) >> 8);  /* 110111CC */
+            str[3] =              (char)((codepoint & 0x000000FF) >> 0);  /* DDDDDDDD */
             c.bytes = 4;
-        }
-        else /* If the codepoint is not valid */
+        } else /* If the codepoint is not valid */
             c.bytes = 0; /* Don't even try */
     break;
     case HOUTF_ENCODING_UTF16LE:
         /* UTF-16LE (Little Endian) is just like UTF-16BE (Big Endian) with the reverse endianness meaning that the */
         /* operations here are identical to those above but the indexes have been changed to reflect endianness */
-        if (codepoint <= 0x0000D7FF || (codepoint >= 0x0000E000 && codepoint <= 0x0000FFFF))
-        {
+        if (codepoint <= 0x0000D7FF || (codepoint >= 0x0000E000 && codepoint <= 0x0000FFFF)) {
             str[1] = (char)((codepoint & 0x0000FF00) >> 8);
             str[0] = (char)((codepoint & 0x000000FF) >> 0);
             c.bytes = 2;
-        }
-        else if (codepoint >= 0x00010000 && codepoint <= 0x0010FFFF)
-        {
+        } else if (codepoint >= 0x00010000 && codepoint <= 0x0010FFFF) {
             codepoint -= 0x00010000;
-            str[3] = 0xD8 | (char)((codepoint & 0x000C0000) >> 20); /* 110110AA */
-            str[2] =        (char)((codepoint & 0x0003FC00) >> 18); /* BBBBBBBB */
-            str[1] = 0xDC | (char)((codepoint & 0x00000300) >> 8);  /* 110111CC */
-            str[0] =        (char)((codepoint & 0x000000FF) >> 0);  /* DDDDDDDD */
+            str[3] = (char)0xD8 | (char)((codepoint & 0x000C0000) >> 18); /* 110110AA */
+            str[2] =              (char)((codepoint & 0x0003FC00) >> 10); /* BBBBBBBB */
+            str[1] = (char)0xDC | (char)((codepoint & 0x00000300) >> 8);  /* 110111CC */
+            str[0] =              (char)((codepoint & 0x000000FF) >> 0);  /* DDDDDDDD */
             c.bytes = 4;
-        }
-        else
+        } else
             c.bytes = 0;
     break;
     }
@@ -516,31 +486,33 @@ houtf_char_t houtf_encode_e(unsigned codepoint, houtf_encoding_t encoding)
     return c;
 }
 
-char* houtf_strcat(char* destination, const char* source)
-{
+char* houtf_strcat(char* destination, const char* source) {
     return houtf_strcat_e(destination, HOUTF_ENCODING_UTF8, source, HOUTF_ENCODING_UTF8);
 }
 
 char* houtf_strcat_e(char* destination, houtf_encoding_t destination_encoding, const char* source,
-    houtf_encoding_t source_encoding)
-{
+        houtf_encoding_t source_encoding) {
+    const char* is; /* Source iterator */
+    char* id; /* Destination iterator */
+    houtf_char_t cd, cs; /* Destination and source characters */
+
     if (destination == NULL || source == NULL)
         return destination;
 
     /* Iterate through the current destination string to look for the null terminator, stopping there */
-    char* id = destination; /* Destination iterator */
-    houtf_char_t cd = houtf_decode_e(/* str: */ id, /* bytes: */ 4, /* encoding: */ destination_encoding);
-    while (cd.codepoint != 0) /* While not at the destination's terminator */
-    {
+    id = destination;
+    cd = houtf_decode_e(/* str: */ id, /* bytes: */ 4, /* encoding: */ destination_encoding);
+    while (cd.codepoint != 0) { /* While not at the destination's terminator */
         id += cd.bytes; /* Iterate forward by the number of bytes used by the previous character */
         cd = houtf_decode_e(id, 4, destination_encoding);
     }
 
     /* Iterate through both strings, assigning values from the source string to the destination string */
-    const char* is = source; /* Source iterator */
-    houtf_char_t cs = {0, 0, 0, HOUTF_ENCODING_UNKNOWN}; /* Source character */
-    do
-    {
+    is = source;
+    cs.encoded = cs.codepoint = 0;
+    cs.bytes = 0;
+    cs.encoding = HOUTF_ENCODING_UNKNOWN;
+    do {
         cs = houtf_decode_e(/* str: */ is, /* bytes: */ 4, /* encoding: */ source_encoding);
         /* Reuse 'cd' to re-encode the character from the source and copy the character to the destination */
         cd = houtf_encode_e(/* codepoint: */ cs.codepoint, /* encoding: */ destination_encoding);
@@ -549,44 +521,44 @@ char* houtf_strcat_e(char* destination, houtf_encoding_t destination_encoding, c
         /* Iterate to the next character for both strings */
         is += cs.bytes;
         id += cs.bytes;
-    }
-    while (cs.codepoint != 0); /* While not at the source's terminator */
+    } while (cs.codepoint != '\0'); /* While not at the source's terminator */
 
     return destination;
 }
 
-const char* houtf_strchr(const char* str, unsigned codepoint)
-{
+const char* houtf_strchr(const char* str, unsigned codepoint) {
     return houtf_strchr_e(str, codepoint, HOUTF_ENCODING_UTF8);
 }
 
-const char* houtf_strchr_e(const char* str, unsigned codepoint, houtf_encoding_t str_encoding)
-{
+const char* houtf_strchr_e(const char* str, unsigned codepoint, houtf_encoding_t str_encoding) {
+    const char* i; /* Iterator */
+    houtf_char_t c; /* Decoded character */
+
     if (str == NULL)
         return NULL;
 
-    const char* i = str; /* Iterator */
-    houtf_char_t c = {0, 0, 0, HOUTF_ENCODING_UNKNOWN}; /* Decoded character */
-    do
-    {
+    i = str; /* Iterator */
+    do {
         c = houtf_decode_e(/* str: */ i, /* bytes: */ 4, /* encoding: */ str_encoding);
         if (c.codepoint == codepoint)
             return i;
 
         i += c.bytes; /* Iterate forward by the number of bytes used by the character */
-    }
-    while (c.codepoint != 0); /* While not at the string's terminator */
+    } while (c.codepoint != '\0'); /* While not at the string's terminator */
 
     return NULL;
 }
 
-int houtf_strcmp(const char* str1, const char* str2)
-{
+int houtf_strcmp(const char* str1, const char* str2) {
     return houtf_strcmp_e(str1, HOUTF_ENCODING_UTF8, str2, HOUTF_ENCODING_UTF8);
 }
 
-int houtf_strcmp_e(const char* str1, houtf_encoding_t str1_encoding, const char* str2, houtf_encoding_t str2_encoding)
-{
+#define IS_NEW_LINE(c) (c == 0x0A || c == 0x0D)
+
+int houtf_strcmp_e(const char* str1, houtf_encoding_t str1_encoding, const char* str2, houtf_encoding_t str2_encoding) {
+    const char *i1, *i2; /* str1 and str2 iterators */
+    houtf_char_t c1, c2; /* str1 and str2 characters */
+
     if (str1 == NULL && str2 == NULL)
         return 0;
     else if (str1 == NULL)
@@ -594,12 +566,9 @@ int houtf_strcmp_e(const char* str1, houtf_encoding_t str1_encoding, const char*
     else if (str2 == NULL)
         return 1;
 
-    const char* i1 = str1; /* str1 iterator */
-    const char* i2 = str2; /* str2 iterator */
-    houtf_char_t c1 = {0, 0, 0, HOUTF_ENCODING_UNKNOWN}; /* str1 character */
-    houtf_char_t c2 = {0, 0, 0, HOUTF_ENCODING_UNKNOWN}; /* str2 character */
-    do
-    {
+    i1 = str1;
+    i2 = str2;
+    do {
         /* Decode the current character from strings in order to know their values and number of bytes */
         c1 = houtf_decode_e(/* str: */ i1, /* bytes: */ 4, /* encoding: */ str1_encoding);
         c2 = houtf_decode_e(i2, 4, str2_encoding);
@@ -607,27 +576,27 @@ int houtf_strcmp_e(const char* str1, houtf_encoding_t str1_encoding, const char*
         /* Iterate to the next character for both strings */
         i1 += c1.bytes;
         i2 += c2.bytes;
-    }
-    while (c1.codepoint != 0 && c1.codepoint == c2.codepoint); /* While equal and not at the terminator */
+    } while (c1.codepoint != '\0' && c1.codepoint == c2.codepoint); /* While equal and not at the terminator */
 
     return (int)(c1.codepoint - c2.codepoint);
 }
 
-size_t houtf_strlen(const char* str)
-{
+size_t houtf_strlen(const char* str) {
     return houtf_strlen_e(str, HOUTF_ENCODING_UTF8);
 }
 
-size_t houtf_strlen_e(const char* str, houtf_encoding_t encoding)
-{
+size_t houtf_strlen_e(const char* str, houtf_encoding_t encoding) {
+    size_t len; /* Length, to be incremented each character */
+    const char* i; /* Iterator */
+    houtf_char_t c; /* Decoded character */
+
     if (str == NULL)
         return 0;
 
-    size_t len = 0; /* Length, to be incremented each character */
-    const char* i = str; /* Iterator */
-    houtf_char_t c = houtf_decode_e(/* str: */ i, /* bytes: */ 4, /* encoding: */ encoding); /* Decoded character */
-    while (c.codepoint != 0) /* While not at the string's terminator */
-    {
+    len = 0;
+    i = str;
+    c = houtf_decode_e(/* str: */ i, /* bytes: */ 4, /* encoding: */ encoding); /* Decoded character */
+    while (c.codepoint != '\0') { /* While not at the string's terminator */
         len += 1; /* Increment the length of the string by one */
         i += c.bytes; /* Iterate forward by the number of bytes used by the previous character */
         c = houtf_decode_e(i, 4, encoding); /* Decode the next character */
@@ -636,29 +605,28 @@ size_t houtf_strlen_e(const char* str, houtf_encoding_t encoding)
     return len;
 }
 
-const char* houtf_strstr(const char* str1, const char* str2)
-{
+const char* houtf_strstr(const char* str1, const char* str2) {
     return houtf_strstr_e(str1, HOUTF_ENCODING_UTF8, str2, HOUTF_ENCODING_UTF8);
 }
 
 const char* houtf_strstr_e(const char* str1, houtf_encoding_t str1_encoding, const char* str2,
-    houtf_encoding_t str2_encoding)
-{
+        houtf_encoding_t str2_encoding) {
+    const char* i1_0; /* Outer loop str1 iterator. Points to the start of the matching string, if it exists. */
+    houtf_char_t c1, c2; /* str1 and str2 characters */
+
     if (str1 == NULL || str2 == NULL)
         return NULL;
 
-    const char* i1_0 = str1; /* Outer loop str1 iterator. Points to the start of the matching string, if it exists. */
-    houtf_char_t c1 = houtf_decode_e(/* str: */ str1, /* bytes: */ 4, /* encoding: */ str1_encoding);
-    houtf_char_t c2 = houtf_decode_e(str2, 4, str2_encoding);
+    i1_0 = str1;
+    c1 = houtf_decode_e(/* str: */ str1, /* bytes: */ 4, /* encoding: */ str1_encoding);
+    c2 = houtf_decode_e(str2, 4, str2_encoding);
+    while (c1.codepoint != '\0' && c2.codepoint != '\0') {
+        if (c1.codepoint == c2.codepoint) {
+            const char *i1, *i2;
 
-    while (c1.codepoint != 0 && c2.codepoint != 0)
-    {
-        if (c1.codepoint == c2.codepoint)
-        {
-            const char* i1 = i1_0;
-            const char* i2 = str2;
-            do
-            {
+            i1 = i1_0;
+            i2 = str2;
+            do {
                 c1 = houtf_decode_e(i1, 4, str1_encoding);
                 c2 = houtf_decode_e(i2, 4, str2_encoding);
 
@@ -667,8 +635,7 @@ const char* houtf_strstr_e(const char* str1, houtf_encoding_t str1_encoding, con
 
                 i1 += c1.bytes;
                 i2 += c2.bytes;
-            }
-            while (c1.codepoint == c2.codepoint);
+            } while (c1.codepoint == c2.codepoint);
         }
 
         i1_0 += c1.bytes;
