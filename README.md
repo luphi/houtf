@@ -23,20 +23,21 @@ Define the implementation before including houtf.
 ``` c
 #include <stdio.h> /* printf() */
 #include <stdlib.h> /* EXIT_SUCCESS, NULL */
-#include <string.h> /* strcpy() */
+#include <string.h> /* memset(), strcpy() */
 
 #define HOUTF_IMPLEMENTATION
 #include "houtf.h"
 
-int main(int argc, char** argv)
-{
+int main(void) {
+    const char *outer, *inner;
+    char destination[64];
+
     /* Create some UTF-8 strings with relatively high Unicode values */
     /* This string in a more readable form is: 元気で明るく、朗らかな性格である。*/
-    const char* outer = "\xe5\x85\x83\xe6\xb0\x97\xe3\x81\xa7\xe6\x98\x8e\xe3\x82\x8b\xe3\x81\x8f\xe3\x80\x81\xe6\x9c"
-                        "\x97\xe3\x82\x89\xe3\x81\x8b\xe3\x81\xaa\xe6\x80\xa7\xe6\xa0\xbc\xe3\x81\xa7\xe3\x81\x82\xe3"
-                        "\x82\x8b\xe3\x80\x82";
+    outer = "\xe5\x85\x83\xe6\xb0\x97\xe3\x81\xa7\xe6\x98\x8e\xe3\x82\x8b\xe3\x81\x8f\xe3\x80\x81\xe6\x9c\x97\xe3\x82"
+            "\x89\xe3\x81\x8b\xe3\x81\xaa\xe6\x80\xa7\xe6\xa0\xbc\xe3\x81\xa7\xe3\x81\x82\xe3\x82\x8b\xe3\x80\x82";
     /* This is an excerpt from the previous string: 明るく */
-    const char* inner = "\xe6\x98\x8e\xe3\x82\x8b\xe3\x81\x8f";
+    inner = "\xe6\x98\x8e\xe3\x82\x8b\xe3\x81\x8f";
 
     /* Measuring the length of a string in characters */
     printf("\"%s\" is %lu characters long\n", outer, (unsigned long)houtf_strlen(outer));
@@ -67,7 +68,7 @@ int main(int argc, char** argv)
         printf("\"%s\" is NOT inside \"%s\"\n", outer, inner);
 
     /* Concatenation */
-    char destination[32] = {0};
+    memset(destination, '\0', 64);
     strcpy(destination, inner);
     printf("\"%s\" + \"%s\" = \"%s\"\n", destination, inner, houtf_strcat(destination, inner));
 
